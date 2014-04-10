@@ -1,14 +1,17 @@
 Source: torchio
-Section: user/hidden
+Section: user/utilities
 Priority: optional
-Maintainer: unknown <john@unknown>
+Maintainer: John Pietrzak <jpietrzak8@gmail.com>
 Build-Depends: debhelper (>= 5), libqt4-dev
 Standards-Version: 3.7.3
-Homepage: <insert the upstream URL, if relevant>
+Homepage: https://github.com/jpietrzak8/Torchio
 
 Package: torchio
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
-XB-Maemo-Display-Name: torchio
+Description: Command-line Flashlight App
+ Torchio is a command-line version of the Lanterne flashlight app.  Supports both constant and pulsed modes, for either the red or white LEDs.
+XB-Maemo-Upgrade-Description: Now with Morse code
+ Morse code has been added: use option "-m" to read text from stdin, or "-mf <filename>" to read from a file.
+XSBC-Bugtracker: https://github.com/jpietrzak8/Torchio/issues
+XB-Maemo-Display-Name: Torchio

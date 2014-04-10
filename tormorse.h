@@ -24,6 +24,8 @@
 #define TORMORSE_H
 
 #include <QTimer>
+#include <QString>
+#include <QTextStream>
 
 #include <list>
 typedef std::list<bool> TorBoolList;
@@ -38,25 +40,50 @@ public:
 
   void startSOS();
   void startE();
-  void stopLooping();
+
+  void startMorseFromFile(
+    QString filename);
+
+  void startMorseFromStream(
+    QTextStream &stream);
+
+  void stopRunning();
 
 signals:
   void turnTorchOn();
   void turnTorchOff();
 
+  void morseFinished();
+
 private slots:
   void runSOSCode();
   void runECode();
+  void runMorseCode();
 
 private:
+  void translateTextToBits(
+    QTextStream &stream);
+
+  void dot();
+  void dash();
+  void threeUnitGap();
+  void fourUnitGap();
+
   void setupSOSCode();
   void setupECode();
+
   void pushBits(
     TorBoolList &bits,
     bool value,
     unsigned int quantity);
 
   QTimer timer;
+
+  bool runMorseContinuously;
+  bool morseConnected;
+
+  TorBoolList morseCodeBits;
+  TorBoolList::const_iterator morseCodePosition;
 
   TorBoolList sosCodeBits;
   TorBoolList::const_iterator sosCodePosition;

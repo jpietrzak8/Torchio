@@ -33,7 +33,10 @@ TorController::TorController(
     color(White_Color),
     ignoreCover(false),
     timeoutDuration(0),
-    argList(args)
+    argList(args),
+    morseRunning(false),
+    morseFromStdin(false),
+    inputStream(stdin)
 {
   // Set up the timer:
   connect(
@@ -49,6 +52,14 @@ TorController::TorController(
     this,
     SLOT(cleanupAndExit()));
 
+  // Also, when Morse code has finished:
+  connect(
+    &morse,
+    SIGNAL(morseFinished()),
+    this,
+    SLOT(handleEndOfMorse()));
+
+  // More Morse integration:
   connect(
     &morse,
     SIGNAL(turnTorchOn()),
@@ -71,7 +82,7 @@ TorController::~TorController()
 
 void TorController::parseArgs()
 {
-  QTextStream cout(stdout);
+  QTextStream qts(stdout);
 
   int i = 1;
   while (i < argList.size())
@@ -80,34 +91,49 @@ void TorController::parseArgs()
       || (argList.at(i) == "--help"))
     {
       // Print out the help info and quit:
-      cout << "Torchio command-line N900 flashlight." << endl;
-      cout << endl;
-      cout << "Usage: " << argList.at(0) << " [options]" << endl;
-      cout << endl;
-      cout << "By default, Torchio turns the LEDs on when it starts" << endl;
-      cout << "running, and turns them off when it exits." << endl;
-      cout << endl;
-      cout << "Options:" << endl;
-      cout << "-h         Show this help info" << endl;
-      cout << "--help" << endl;
-      cout << endl;
-      cout << "-p         Pulsed mode" << endl;
-      cout << "--pulsed" << endl;
-      cout << "-s         SOS mode" << endl;
-      cout << "--sos" << endl;
-      cout << endl;
-      cout << "-w         Use white LEDs" << endl;
-      cout << "--white" << endl;
-      cout << "-r         Use red LED" << endl;
-      cout << "--red" << endl;
-      cout << endl;
-      cout << "-i         Ignore camera cover" << endl;
-      cout << "--ignorecover" << endl;
-      cout << endl;
-      cout << "-t nnn     Switch LEDs off and exit after nnn minutes" << endl;
-      cout << "           (from 1 to 120 minutes supported)" << endl;
-      cout << "--timeout nnn" << endl;
+      qts << "Torchio command-line N900 flashlight." << endl;
+      qts << endl;
+      qts << "Usage: " << argList.at(0) << " [options]" << endl;
+      qts << endl;
+      qts << "By default, Torchio turns the LEDs on when it starts" << endl;
+      qts << "running, and turns them off when it exits." << endl;
+      qts << endl;
+      qts << "Options:" << endl;
+      qts << "-p         Pulsed mode" << endl;
+      qts << "--pulsed" << endl;
+      qts << "-s         SOS mode" << endl;
+      qts << "--sos" << endl;
+      qts << "-m         Generate Morse code from standard input" << endl;
+      qts << "--morse" << endl;
+      qts << "-mf <filename>   Generate Morse code from text file" << endl;
+      qts << "--morsefromfile <filename>" << endl;
+      qts << endl;
+      qts << "-w         Use white LEDs" << endl;
+      qts << "--white" << endl;
+      qts << "-r         Use red LED" << endl;
+      qts << "--red" << endl;
+      qts << endl;
+      qts << "-i         Ignore camera cover" << endl;
+      qts << "--ignorecover" << endl;
+      qts << endl;
+      qts << "-t nnn     Switch LEDs off and exit after nnn minutes" << endl;
+      qts << "           (from 1 to 120 minutes supported)" << endl;
+      qts << "--timeout nnn" << endl;
+      qts << endl;
+      qts << "-v         Print the version number" << endl;
+      qts << "--version" << endl;
+      qts << endl;
+      qts << "-h         Show this help info" << endl;
+      qts << "--help" << endl;
+      qts << endl;
   
+      emit controllerDone();
+      return;
+    }
+    else if ((argList.at(i) == "-v")
+      || (argList.at(i) == "--version"))
+    {
+      qts << "Torchio version 0.0.2" << endl;
       emit controllerDone();
       return;
     }
@@ -120,6 +146,30 @@ void TorController::parseArgs()
       || (argList.at(i) == "--sos"))
     {
       pulse = SOS_Pulse;
+    }
+    else if ((argList.at(i) == "-m")
+      || (argList.at(i) == "--morse"))
+    {
+      pulse = MorseFromStream_Pulse;
+      morseFromStdin = true;
+    }
+    else if ((argList.at(i) == "-mf")
+      || (argList.at(i) == "-morsefromfile"))
+    {
+      ++i;
+      if (i >= argList.size())
+      {
+        // error: reached end of list
+        qts << "Error: no filename provided" << endl;
+        emit controllerDone();
+        return;
+      }
+      else
+      {
+        pulse = MorseFromFile_Pulse;
+        filename = argList.at(i);
+        morseFromStdin = false;
+      }
     }
     else if ((argList.at(i) == "-w")
       || (argList.at(i) == "--white"))
@@ -143,7 +193,7 @@ void TorController::parseArgs()
       if (i >= argList.size())
       {
         // error: reached end of list
-        cout << "Error: no timeout duration given" << endl;
+        qts << "Error: no timeout duration provided" << endl;
         emit controllerDone();
         return;
       }
@@ -154,7 +204,7 @@ void TorController::parseArgs()
         if (!isANumber)
         {
           // error: couldn't parse duration value
-          cout << "Error: couldn't parse timeout value" << endl;
+          qts << "Error: couldn't parse timeout value" << endl;
           emit controllerDone();
           return;
         }
@@ -163,15 +213,15 @@ void TorController::parseArgs()
           if (t < 1)
           {
             // error: timeout too small
-            cout << "Warning: timeout value less than 1." << endl;
-            cout << "Timeout being set to 1 minute." << endl;
+            qts << "Warning: timeout value less than 1." << endl;
+            qts << "Timeout being set to 1 minute." << endl;
             timeoutDuration = 1;
           }
           else if (t > 120)
           {
             // error: timeout too large
-            cout << "Warning: timeout value greater than 120." << endl;
-            cout << "Timeout being set to 120 minutes." << endl;
+            qts << "Warning: timeout value greater than 120." << endl;
+            qts << "Timeout being set to 120 minutes." << endl;
             timeoutDuration = 120;
           }
           else
@@ -184,8 +234,8 @@ void TorController::parseArgs()
     else
     {
       // Print out the "I didn't understand that" and quit:
-      cout << "Error: argument \"" << argList.at(i);
-      cout << "\" not supported" << endl;
+      qts << "Error: argument \"" << argList.at(i);
+      qts << "\" not supported" << endl;
       emit controllerDone();
       return;
     }
@@ -197,7 +247,7 @@ void TorController::parseArgs()
   if (dbus.coverCurrentlyClosed() && !ignoreCover)
   {
     // Print out the "camera cover closed" message and quit:
-    cout << "Error: camera cover is currently closed";
+    qts << "Error: camera cover is currently closed" << endl;
     emit controllerDone();
     return;
   }
@@ -213,12 +263,41 @@ void TorController::parseArgs()
   if (pulse == Simple_Pulse)
   {
     morse.startE();
-    loopRunning = true;
+    morseRunning = true;
   }
   else if (pulse == SOS_Pulse)
   {
     morse.startSOS();
-    loopRunning = true;
+    morseRunning = true;
+  }
+  else if (pulse == MorseFromStream_Pulse)
+  {
+    // We need to grab the first chunk of input and parse it:
+    QString firstChunk = inputStream.readLine();
+    if (firstChunk.isNull())
+    {
+      // No input.
+      cleanupAndExit();
+      return;
+    }
+
+    QTextStream lineStream(&firstChunk);
+
+    morse.startMorseFromStream(lineStream);
+  }
+  else if (pulse == MorseFromFile_Pulse)
+  {
+    try
+    {
+      morse.startMorseFromFile(filename);
+    }
+    catch (TorException &e)
+    {
+      QTextStream qts(stderr);
+      qts << e.getError() << endl;
+      cleanupAndExit();
+    }
+    morseRunning = true;
   }
   else
   {
@@ -242,8 +321,8 @@ void TorController::turnOn()
   }
   catch (TorException &e)
   {
-    QTextStream cout(stdout);
-    cout << e.getError();
+    QTextStream qts(stderr);
+    qts << e.getError() << endl;
     cleanupAndExit();
   }
 }
@@ -258,20 +337,44 @@ void TorController::turnOff()
   }
   catch (TorException &e)
   {
-    QTextStream cout(stdout);
-    cout << e.getError();
+    QTextStream qts(stderr);
+    qts << e.getError() << endl;
     cleanupAndExit();
   }
+}
+
+
+void TorController::handleEndOfMorse()
+{
+  if (!morseFromStdin)
+  {
+    // We were reading from a file, so just end it here.
+    cleanupAndExit();
+    return;
+  }
+
+  // We need to grab the next chunk of input and parse it:
+  QString nextChunk = inputStream.readLine();
+  if (nextChunk.isNull())
+  {
+    // No more input.
+    cleanupAndExit();
+    return;
+  }
+
+  QTextStream lineStream(&nextChunk);
+
+  morse.startMorseFromStream(lineStream);
 }
 
 
 void TorController::cleanupAndExit()
 {
   // Stop any pulsing:
-  if (loopRunning)
+  if (morseRunning)
   {
-    morse.stopLooping();
-    loopRunning = false;
+    morse.stopRunning();
+    morseRunning = false;
   }
 
   // Turn off the LEDs:

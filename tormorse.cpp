@@ -21,15 +21,16 @@
 //
 
 #include "tormorse.h"
+#include "torexception.h"
 
 #include <QTimer>
-//#include <QFileDialog>
-//#include <QFile>
+#include <QFile>
 //#include <QTextStream>
-//#include <QTextDocument>
 
 
 TorMorse::TorMorse()
+  : runMorseContinuously(false),
+    morseConnected(false)
 {
   setupSOSCode();
   setupECode();
@@ -59,35 +60,46 @@ void TorMorse::startE()
 }
 
 
-void TorMorse::stopLooping()
+void TorMorse::stopRunning()
 {
   timer.stop();
 }
 
 
-/*
-void LanMorseForm::on_morseButton_clicked()
+void TorMorse::startMorseFromFile(
+  QString filename)
 {
-  if (timer)
+  QFile file(filename);
+
+  if (!file.open(QFile::ReadOnly | QFile::Text))
   {
-    delete timer;
-    timer = 0;
+    QString errString = "Error when opening file.  Qt error value: ";
+    errString += file.error();
+    throw TorException(errString);
   }
 
+  QTextStream stream(&file);
+
+  startMorseFromStream(stream);
+}
+
+
+void TorMorse::startMorseFromStream(
+  QTextStream &stream)
+{
   // Create the morseCodeBits:
-  translateTextToBits();
+  translateTextToBits(stream);
 
   // Execute the morseCodeBits:
+  timer.stop();
   morseCodePosition = morseCodeBits.begin();
-  timer = new QTimer(this);
-  connect (timer, SIGNAL(timeout()), this, SLOT(runMorseCode()));
-  timer->start(mainWindow->dotDuration());
-
-  // Flag that we are now transmitting morse:
-  morseRunning = true;
-  morsePaused = false;
+  if (!morseConnected)
+  {
+    connect (&timer, SIGNAL(timeout()), this, SLOT(runMorseCode()));
+    morseConnected = true;
+  }
+  timer.start(100);
 }
-*/
 
 
 /*
@@ -133,35 +145,6 @@ void LanMorseForm::on_pauseButton_clicked()
 
 
 /*
-void LanMorseForm::on_selectTextFileButton_clicked()
-{
-  QString filename = QFileDialog::getOpenFileName(
-    this,
-    tr("Choose Text File"),
-    "/home/user/MyDocs/.documents");
-
-  if (filename.isEmpty())
-  {
-    // Need to create a message of some sort here...
-    return;
-  }
-
-  QFile file(filename);
-
-  if (!file.open(QFile::ReadOnly | QFile::Text))
-  {
-    // Need to create a message of some sort here...
-    return;
-  }
-
-  QTextStream in(&file);
-
-  ui->morsePlainTextEdit->setPlainText(in.readAll());
-}
-*/
-
-
-/*
 void LanMorseForm::on_repeatCheckBox_toggled(bool checked)
 {
   runMorseContinuously = checked;
@@ -169,8 +152,7 @@ void LanMorseForm::on_repeatCheckBox_toggled(bool checked)
 */
 
 
-/*
-void LanMorseForm::runMorseCode()
+void TorMorse::runMorseCode()
 {
   if (morseCodePosition == morseCodeBits.end())
   {
@@ -180,31 +162,23 @@ void LanMorseForm::runMorseCode()
     }
     else
     {
-      if (timer)
-      {
-        delete timer;
-        timer = 0;
-      }
-
-      morseRunning = false;
-      morsePaused = false;
-
+      timer.stop();
+      emit morseFinished();
       return;
     }
   }
 
   if (*morseCodePosition)
   {
-    mainWindow->turnTorchOn();
+    emit turnTorchOn();
   }
   else
   {
-    mainWindow->turnTorchOff();
+    emit turnTorchOff();
   }
 
   ++morseCodePosition;
 }
-*/
 
 
 void TorMorse::runSOSCode()
@@ -251,19 +225,17 @@ void TorMorse::runECode()
 //
 // This method will convert the desired text into morse code bits:
 //
-/*
-void LanMorseForm::translateTextToBits()
+void TorMorse::translateTextToBits(
+  QTextStream &stream)
 {
   morseCodeBits.clear();
 
-  const QTextDocument *morseText = ui->morsePlainTextEdit->document();
-
-  int index = 0;
-  int count = morseText->characterCount();
-
-  while (index < count)
+  QChar c;
+  while (!stream.atEnd())
   {
-    switch (morseText->characterAt(index).toAscii())
+    stream >> c;
+
+    switch (c.toAscii())
     {
     case 'a':
     case 'A':
@@ -455,7 +427,10 @@ void LanMorseForm::translateTextToBits()
 
     case ' ':
       // End of a word, so need to add 4 units to the 3-unit character gap:
-      fourUnitGap(); break;
+      fourUnitGap();
+      // Also, clear out any extra whitespace chars:
+      stream.skipWhiteSpace();
+      break;
 
     default:
       break;
@@ -463,38 +438,34 @@ void LanMorseForm::translateTextToBits()
 
     // At the end of every character is a 3 unit gap:
     threeUnitGap();
-
-    ++index;
   }
 }
-*/
 
-/*
-void LanMorseForm::dot()
+
+void TorMorse::dot()
 {
   morseCodeBits.push_back(true);
   morseCodeBits.push_back(false);
 }
 
 
-void LanMorseForm::dash()
+void TorMorse::dash()
 {
   pushBits(morseCodeBits, true, 3);
   morseCodeBits.push_back(false);
 }
 
 
-void LanMorseForm::threeUnitGap()
+void TorMorse::threeUnitGap()
 {
   pushBits(morseCodeBits, false, 3);
 }
 
 
-void LanMorseForm::fourUnitGap()
+void TorMorse::fourUnitGap()
 {
   pushBits(morseCodeBits, false, 4);
 }
-*/
 
 
 void TorMorse::setupSOSCode()

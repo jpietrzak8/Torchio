@@ -34,7 +34,9 @@ enum TorPulseType
 {
   No_Pulse,
   Simple_Pulse,
-  SOS_Pulse
+  SOS_Pulse,
+  MorseFromStream_Pulse,
+  MorseFromFile_Pulse
 };
 
 
@@ -65,6 +67,7 @@ public slots:
   void turnOff();
 
 private slots:
+  void handleEndOfMorse();
   void cleanupAndExit();
 
 private:
@@ -72,13 +75,17 @@ private:
   TorColorType color;
   bool ignoreCover;
   int timeoutDuration;
-  bool loopRunning;
+  QStringList argList;
+  bool morseRunning;
+  bool morseFromStdin;
+
+  QString filename;
+  QTextStream inputStream;
+  QTimer offTimer;
 
   TorFlashLED led;
   TorDBus dbus;
   TorMorse morse;
-  QTimer offTimer;
-  QStringList argList;
 };
 
 #endif // TORCONTROLLER_H
