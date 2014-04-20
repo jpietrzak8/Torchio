@@ -1,3 +1,8 @@
+torchio (0.0.3) unstable; urgency=low
+  * Added an icon for the app.
+
+ -- unknown <john@unknown>  Sun, 20 Apr 2014 08:59:57 -0400
+
 torchio (0.0.2) unstable; urgency=low
   * Added Morse code parsing: option "-m" will read ascii text from stdin and turn it into Morse pulses.  Option "-mf <filename>" will do the same on the contents of the specified file.
 

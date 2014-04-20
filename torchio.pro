@@ -35,7 +35,8 @@ OTHER_FILES += \
     qtc_packaging/debian_fremantle/changelog \
     COPYING \
     LICENSE.md \
-    README.md
+    README.md \
+    torchio64.png
 
 HEADERS += \
     torcontroller.h \
