@@ -1,3 +1,8 @@
+torchio (0.0.4) unstable; urgency=low
+  * Added a feature I forgot about -- the "dot duration" of Morse pulses can now be controlled by the "-d nnn" option.  The "nnn" is an integer value specifying an amount of time in milliseconds, and will affect the timing of the pulse, SOS, and Morse code modes.  (The default value is 100 ms.)
+
+ -- unknown <john@unknown>  Sun, 20 Apr 2014 14:52:35 -0400
+
 torchio (0.0.3) unstable; urgency=low
   * Added an icon for the app.
 

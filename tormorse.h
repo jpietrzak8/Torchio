@@ -38,7 +38,11 @@ public:
   TorMorse();
   ~TorMorse();
 
+  void setDotDuration(
+    unsigned int dotDuration);
+
   void startSOS();
+
   void startE();
 
   void startMorseFromFile(
@@ -90,6 +94,8 @@ private:
 
   TorBoolList eCodeBits;
   TorBoolList::const_iterator eCodePosition;
+
+  unsigned int dotDuration;
 };
 
 #endif // TORMORSE_H

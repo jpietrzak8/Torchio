@@ -108,6 +108,9 @@ void TorController::parseArgs()
       qts << "-mf <filename>   Generate Morse code from text file" << endl;
       qts << "--morsefromfile <filename>" << endl;
       qts << endl;
+      qts << "-d nnn     Set the dot duration to nnn milliseconds" << endl;
+      qts << "--dotduration nnn                  (default is 100)" << endl;
+      qts << endl;
       qts << "-w         Use white LEDs" << endl;
       qts << "--white" << endl;
       qts << "-r         Use red LED" << endl;
@@ -133,7 +136,7 @@ void TorController::parseArgs()
     else if ((argList.at(i) == "-v")
       || (argList.at(i) == "--version"))
     {
-      qts << "Torchio version 0.0.2" << endl;
+      qts << "Torchio version 0.0.4" << endl;
       emit controllerDone();
       return;
     }
@@ -171,6 +174,43 @@ void TorController::parseArgs()
         morseFromStdin = false;
       }
     }
+    else if ((argList.at(i) == "-d")
+      || (argList.at(i) == "--dotduration"))
+    {
+      ++i;
+      if (i >= argList.size())
+      {
+        qts << "Error: no dot duration provided" << endl;
+        emit controllerDone();
+        return;
+      }
+
+      bool isANumber;
+      int t = argList.at(i).toInt(&isANumber);
+      if (!isANumber)
+      {
+        qts << "Error: couldn't parse timeout value" << endl;
+        emit controllerDone();
+        return;
+      }
+
+      if (t < 1)
+      {
+        qts << "Warning: dot duration value less than 1" << endl;
+        qts << "Dot duration being set to 1 millisecond." << endl;
+        morse.setDotDuration(1);
+      }
+      else if (t > 600000)
+      {
+        qts << "Warning: dot duration value greater than 10 minutes" << endl;
+        qts << "Dot duration being set to 600000 (10 minutes)" << endl;
+        morse.setDotDuration(600000);
+      }
+      else
+      {
+        morse.setDotDuration(t);
+      }
+    }
     else if ((argList.at(i) == "-w")
       || (argList.at(i) == "--white"))
     {
@@ -197,38 +237,34 @@ void TorController::parseArgs()
         emit controllerDone();
         return;
       }
+
+      bool isANumber;
+      int t = argList.at(i).toInt(&isANumber);
+      if (!isANumber)
+      {
+        // error: couldn't parse duration value
+        qts << "Error: couldn't parse timeout value" << endl;
+        emit controllerDone();
+        return;
+      }
+
+      if (t < 1)
+      {
+        // error: timeout too small
+        qts << "Warning: timeout value less than 1." << endl;
+        qts << "Timeout being set to 1 minute." << endl;
+        timeoutDuration = 1;
+      }
+      else if (t > 120)
+      {
+        // error: timeout too large
+        qts << "Warning: timeout value greater than 120." << endl;
+        qts << "Timeout being set to 120 minutes." << endl;
+        timeoutDuration = 120;
+      }
       else
       {
-        bool isANumber;
-        int t = argList.at(i).toInt(&isANumber);
-        if (!isANumber)
-        {
-          // error: couldn't parse duration value
-          qts << "Error: couldn't parse timeout value" << endl;
-          emit controllerDone();
-          return;
-        }
-        else
-        {
-          if (t < 1)
-          {
-            // error: timeout too small
-            qts << "Warning: timeout value less than 1." << endl;
-            qts << "Timeout being set to 1 minute." << endl;
-            timeoutDuration = 1;
-          }
-          else if (t > 120)
-          {
-            // error: timeout too large
-            qts << "Warning: timeout value greater than 120." << endl;
-            qts << "Timeout being set to 120 minutes." << endl;
-            timeoutDuration = 120;
-          }
-          else
-          {
-            timeoutDuration = t;
-          }
-        }
+        timeoutDuration = t;
       }
     }
     else

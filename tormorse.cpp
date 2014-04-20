@@ -30,7 +30,8 @@
 
 TorMorse::TorMorse()
   : runMorseContinuously(false),
-    morseConnected(false)
+    morseConnected(false),
+    dotDuration(100)
 {
   setupSOSCode();
   setupECode();
@@ -42,12 +43,19 @@ TorMorse::~TorMorse()
 }
 
 
+void TorMorse::setDotDuration(
+  unsigned int dd)
+{
+  dotDuration = dd;
+}
+
+
 void TorMorse::startSOS()
 {
   timer.stop();
   sosCodePosition = sosCodeBits.begin();
   connect (&timer, SIGNAL(timeout()), this, SLOT(runSOSCode()));
-  timer.start(100);
+  timer.start(dotDuration);
 }
 
 
@@ -56,7 +64,7 @@ void TorMorse::startE()
   timer.stop();
   eCodePosition = eCodeBits.begin();
   connect (&timer, SIGNAL(timeout()), this, SLOT(runECode()));
-  timer.start(100);
+  timer.start(dotDuration);
 }
 
 
@@ -98,7 +106,7 @@ void TorMorse::startMorseFromStream(
     connect (&timer, SIGNAL(timeout()), this, SLOT(runMorseCode()));
     morseConnected = true;
   }
-  timer.start(100);
+  timer.start(dotDuration);
 }
 
 
